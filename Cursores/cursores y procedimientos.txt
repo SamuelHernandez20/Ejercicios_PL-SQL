@@ -1,0 +1,85 @@
+-- 1
+
+create or replace procedure empleados_jefes_p (posición_de_busqueda  empleado.codigo_jefe%type)
+as
+registro number(25);
+cursor recorrer_jerarquía_jefes_empleados is 
+select e.nombre as empleado_nombre, e.puesto as empleado_puesto, j.nombre as jefe_nombre, j.puesto as jefe_puesto from empleado e
+inner join empleado j on e.codigo_jefe = j.codigo_empleado
+where e.codigo_jefe = posición_de_busqueda;
+
+BEGIN
+  
+ for registro in recorrer_jerarquía_jefes_empleados loop
+ dbms_output.put_line('El empleado ' || registro.empleado_nombre || ' con puesto de ' || registro.empleado_puesto || ' tiene como jefe a ' ||  registro.jefe_nombre || ', ' || registro.jefe_puesto);
+ end loop;
+ 
+DECLARE
+    v_posición_de_búsqueda number(2) := &posición;
+BEGIN
+    empleados_jefes_p(v_posición_de_búsqueda);   
+END;
+/
+
+-- 2 (mismo ejercicio haciendo uso de fetch y loop)
+
+create or replace procedure empleados_jefes_p_fetch (posición_de_busqueda  empleado.codigo_jefe%type)
+as
+
+v_nombre empleado.nombre%TYPE;
+v_puesto empleado.puesto%TYPE;
+v_nombre_jefe empleado.nombre%TYPE;
+v_puesto_jefe empleado.puesto%TYPE;
+
+cursor recorrer_jerarquía_jefes_empleados is 
+select e.nombre as empleado_nombre, e.puesto as empleado_puesto, j.nombre as jefe_nombre, j.puesto as jefe_puesto from empleado e
+inner join empleado j on e.codigo_jefe = j.codigo_empleado
+where e.codigo_jefe = posición_de_busqueda;
+
+BEGIN
+
+  OPEN recorrer_jerarquía_jefes_empleados;
+  LOOP
+  FETCH recorrer_jerarquía_jefes_empleados INTO v_nombre, v_puesto, v_nombre_jefe, v_puesto_jefe;
+  EXIT WHEN recorrer_jerarquía_jefes_empleados%NOTFOUND;
+  dbms_output.put_line('El empleado ' || v_nombre || ' con puesto de ' || v_puesto || ' tiene como jefe a ' || v_nombre_jefe || ', ' || v_puesto_jefe);
+  END LOOP;
+  CLOSE recorrer_jerarquía_jefes_empleados;
+
+END;
+/
+
+DECLARE
+    v_posición_de_búsqueda number(2) := &posición;
+BEGIN
+    empleados_jefes_p_fetch(v_posición_de_búsqueda);
+END;
+
+
+-- 3
+
+create or replace procedure mostrarProductosPedido(p_codigopedido pedidos.codigopedido%type)
+as
+cursor prod_pedido is
+select p.nombre, dp.cantidad
+from productos p, detallepedidos dp
+where p.codigoproducto = dp.codigoproducto
+and dp.CODIGOPEDIDO = p_codigopedido;
+begin
+  
+  for registro in prod_pedido loop
+    dbms_output.put_line('Se ha pedido del producto llamado ' || registro.nombre || ': ' || registro.cantidad || ' unidades');
+  end loop;
+  
+end;
+/
+
+declare
+  p_codigopedido pedidos.codigopedido%type := &codigo;
+begin
+  mostrarProductosPedido(p_codigopedido);
+end;
+/
+
+-- 4
+

@@ -1,0 +1,129 @@
+-- 1
+
+create or replace procedure Suma_pagos_procedimiento(v_codigo_cliente cliente.codigo_cliente%type)
+as
+  v_total_pagos pago.total%type;
+  v_nombre_cliente cliente.nombre_cliente%type;
+ begin
+    select sum(total) into v_total_pagos
+    from pago where codigo_cliente = v_codigo_cliente;
+    
+    select nombre_cliente into v_nombre_cliente
+    from cliente where codigo_cliente = v_codigo_cliente;
+    
+    DBMS_OUTPUT.PUT_LINE('Nombre del cliente: ' || v_nombre_cliente);
+    DBMS_OUTPUT.PUT_LINE('El numero total de pagos del cliente es: ' || v_total_pagos);
+   
+   EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No se encuentra el cliente en base al código propocionado: ' || v_codigo_cliente);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error inesperado: ' || SQLERRM);
+
+ end;
+ /
+
+DECLARE
+    v_codigo_cliente cliente.codigo_cliente%type := &codigo_cliente;
+BEGIN
+    Suma_pagos_procedimiento(v_codigo_cliente);   
+END;
+/
+
+create or replace procedure inserccion_coches_p (P_ID_MARCA coche.id_marca%type, P_NUMERO_COCHES NUMBER)
+as
+contador number(8) := 1;
+
+begin
+
+while (contador<=P_NUMERO_COCHES)
+loop
+
+INSERT INTO coche (MATRICULA, DESCRIPCION, ID_MARCA, PRECIO_COMPRA)
+    VALUES ('A00' || contador, P_ID_MARCA, P_ID_MARCA, NULL);
+contador := contador + 1;
+end loop;
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('El registro de coches ya existe en la base de datos.');
+end;
+/
+
+DECLARE
+    v_id_marca_coche coche.id_marca%type := &id_marca;
+    v_numero_coches_insertar NUMBER := &coches_a_insertar;
+BEGIN
+    inserccion_coches_p(v_id_marca_coche, v_numero_coches_insertar);   
+END;
+/
+
+--- Parametros de salida ---
+
+-- 1
+
+create or replace procedure controlador_de_ventas( 
+ p_dni_cliente vende.dni_cliente%type, 
+ p_matricula_coche vende.matricula%type,
+ PS_NUEVO_PRECIO OUT vende.precio%type)
+as
+v_coleccion_datos_venta vende%rowtype;
+v_nuevo_precio vende.precio%type;
+v_error BOOLEAN := false;
+
+BEGIN
+    BEGIN
+
+	select * into v_coleccion_datos_venta from vende
+	where matricula = p_matricula_coche and dni_cliente = p_dni_cliente;
+
+  	EXCEPTION
+    	 WHEN NO_DATA_FOUND THEN
+     	 v_error := true;
+     END;
+
+if v_error then
+    DBMS_OUTPUT.PUT_LINE('No existe la venta introducida. Para el usuario con DNI: ' || p_dni_cliente || ' y la matricula: ' || p_matricula_coche);  
+else
+     DBMS_OUTPUT.PUT_LINE('Valor del precio antiguo de la venta: ' || v_coleccion_datos_venta.precio);
+     
+     update vende set precio = precio + 1000 
+     where matricula = p_matricula_coche and dni_cliente = p_dni_cliente;
+     
+     select precio into v_nuevo_precio
+     from vende where matricula = p_matricula_coche and dni_cliente = p_dni_cliente;
+     
+     PS_NUEVO_PRECIO := v_nuevo_precio;
+     
+     DBMS_OUTPUT.PUT_LINE('Valor nuevo del precio de la venta: ' || PS_NUEVO_PRECIO);
+    
+end if;
+
+
+END;
+/
+
+DECLARE
+    v_dni_cliente vende.dni_cliente%type := &dni_cliente;
+    v_matricula_coche vende.matricula%type := &matricula_coche;
+    v_precio_nuevo vende.precio%type;
+BEGIN
+    controlador_de_ventas(v_dni_cliente, v_matricula_coche, v_precio_nuevo);   
+END;
+/
+
+
+-- 2
+
+
+
+
+
+
+
+
+
+
+
+
+

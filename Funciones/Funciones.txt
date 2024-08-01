@@ -1,0 +1,36 @@
+-- 1 
+
+-- Función para devolver el total de pagos por cliente:
+
+create or replace function Suma_pagos(v_codigo_cliente cliente.codigo_cliente%type)
+ return number is
+  v_total_pagos pago.total%type;
+
+ begin
+    select sum(total) into v_total_pagos
+    from pago where codigo_cliente = v_codigo_cliente;
+
+  return v_total_pagos;
+ end;
+ /
+
+DECLARE
+    v_codigo_cliente cliente.codigo_cliente%type := &codigo_cliente;
+    v_nombre_cliente cliente.nombre_cliente%type;
+    v_total_pagos_cliente number;
+    
+BEGIN
+    v_total_pagos_cliente := Suma_pagos(v_codigo_cliente);
+    
+    select nombre_cliente into v_nombre_cliente
+    from cliente where codigo_cliente = v_codigo_cliente;
+    
+    DBMS_OUTPUT.PUT_LINE('Nombre del cliente: ' || v_nombre_cliente);
+    DBMS_OUTPUT.PUT_LINE('Total de pagos: ' || v_total_pagos_cliente);
+    
+    
+END;
+
+
+-- 2
+

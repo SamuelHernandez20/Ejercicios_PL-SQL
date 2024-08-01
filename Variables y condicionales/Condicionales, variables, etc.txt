@@ -1,0 +1,87 @@
+--- Variables, condicionales y petición de datos ---
+
+-- 1
+
+begin
+
+DBMS_OUTPUT.PUT_LINE('Hola, este es mi primer contacto con PL/SQL');
+
+end;
+
+-- 2
+
+declare numero number(8) := 11;
+
+begin
+if (numero > 10) then
+
+DBMS_OUTPUT.PUT_LINE('El número es mayor que 10');
+
+else
+
+DBMS_OUTPUT.PUT_LINE('El número es menor que 10');
+
+end if;
+
+end;
+
+-- 3
+
+
+declare numero number(8) := &numero;  <-- el "&" es para pedir algo por pantalla.
+
+begin
+
+DBMS_OUTPUT.PUT_LINE('EL valor que ha introducido es: ' || numero);
+
+end;
+
+-- 4
+
+declare 
+numero1 number(10) := &primer_numero;
+numero2 number(8) := &segundo_numero;
+
+begin
+
+if (numero1 > numero2) 
+then
+
+DBMS_OUTPUT.PUT_LINE('El primer valor: ' || numero1 || ' es mayor que el segundo: ' || numero2);
+
+else
+
+if (numero1 < numero2) 
+then
+
+DBMS_OUTPUT.PUT_LINE('El segundo valor: ' || numero2 || ' es mayor que el primero: ' || numero1);
+
+else
+
+DBMS_OUTPUT.PUT_LINE('Los valores: ' || numero1 || ' y ' || numero2 || ' son iguales');
+
+end if;
+
+end if;
+
+end;
+
+
+----------------------------------
+
+Para ejercicios de fechas, se puede alterar la sesión y cambiar el formato de Oracle
+temporalmente:
+
+SELECT parameter, value
+FROM nls_session_parameters
+WHERE parameter = 'NLS_DATE_FORMAT';
+
+ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD';
+
+-------------------------------------
+
+
+
+
+
+

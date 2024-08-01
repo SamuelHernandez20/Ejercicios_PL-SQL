@@ -1,0 +1,102 @@
+declare
+v_codigocliente cliente.codigo_cliente%type := &codigo;
+v_nombrecliente cliente.nombre_cliente%type;
+
+begin
+    select nombre_cliente into v_nombrecliente
+     from cliente
+     where codigo_cliente = v_codigocliente;
+ 
+ 
+DBMS_OUTPUT.PUT_LINE('El nombre del clientes es: ' || v_nombrecliente);
+ 
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No se encuentra el cliente en base al código propocionado: ' || v_codigocliente);
+end;
+/
+
+
+
+
+Create or replace function Suma_pagos(v_codigo_cliente cliente.codigo_cliente%type)
+ return number is
+  v_total_pagos pago.total%type;
+  suma_vacía pago.total%type; 
+
+ begin
+    select sum(total) into v_total_pagos
+    from pago where codigo_cliente = v_codigo_cliente;
+
+ if v_total_pagos is null then
+    RAISE NO_DATA_FOUND; 
+ end if;
+ 
+return v_total_pagos;
+
+ EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+    return -1;
+ end;
+ /
+ 
+ DECLARE
+    v_codigo_cliente cliente.codigo_cliente%type := &codigo_cliente;
+    v_nombre_cliente cliente.nombre_cliente%type;
+    v_total_pagos_cliente number;
+    
+BEGIN
+    v_total_pagos_cliente := Suma_pagos(v_codigo_cliente);
+    
+    select nombre_cliente into v_nombre_cliente
+    from cliente where codigo_cliente = v_codigo_cliente;
+    
+    if v_total_pagos_cliente = -1 then
+     DBMS_OUTPUT.PUT_LINE('El total de la suma devuelve un resultado nulo');
+    else
+    DBMS_OUTPUT.PUT_LINE('Nombre del cliente: ' || v_nombre_cliente);
+    DBMS_OUTPUT.PUT_LINE('Total de pagos: ' || v_total_pagos_cliente);
+    end if;
+     
+END;
+/
+
+
+create or replace function f_coches (V_MATRICULA coche.matricula%type, V_NUEVO_PRECIO_COMPRA coche.precio_compra%type)
+return number
+is
+v_precio_compra coche.precio_compra%type;
+begin
+
+select precio_compra into v_precio_compra
+from coche where matricula = V_MATRICULA;
+
+if v_precio_compra is null then
+    update coche set precio_compra = V_NUEVO_PRECIO_COMPRA
+    where matricula = V_MATRICULA;
+else
+    update coche set precio_compra = precio_compra+(precio_compra-V_NUEVO_PRECIO_COMPRA)
+    where matricula = V_MATRICULA;  
+end if;
+
+ return SQL%ROWCOUNT;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        return -1;
+end;
+/
+
+DECLARE
+v_coche number(10);
+V_MATRICULA coche.matricula%type := &matricula_coche;
+V_NUEVO_PRECIO_COMPRA coche.precio_compra%type := &precio_nuevo_coche;
+BEGIN
+ v_coche := f_coches(V_MATRICULA, V_NUEVO_PRECIO_COMPRA);
+ 
+if v_coche = -1 then
+    DBMS_OUTPUT.PUT_LINE('La matrícula introducida es invalida, código de error: ' || v_coche);
+else
+    DBMS_OUTPUT.PUT_LINE('El numero de filas actualizado es: ' || v_coche);
+end if;
+END;

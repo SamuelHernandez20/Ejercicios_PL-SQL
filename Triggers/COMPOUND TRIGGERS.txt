@@ -360,7 +360,288 @@ delete Emps
 where EmpleadoID = 104;
 
 
+-- 6 Ejercicio: Gestión Avanzada de Estados de Proceso con Compound Trigger
 
+
+CREATE SEQUENCE Historial_Tareas_seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+/
+
+
+CREATE TABLE Tareas (
+    TareaID NUMBER PRIMARY KEY,
+    Descripcion VARCHAR2(255),
+    Estado VARCHAR2(20), -- Puede ser 'Pendiente', 'En Progreso', o 'Completado'
+    FechaCreacion DATE,
+    FechaFinalizacion DATE,
+    ResponsableID NUMBER, -- Referencia a la tabla Usuarios
+    ProyectoID NUMBER -- Referencia a la tabla Proyectos
+);
+
+
+CREATE TABLE Proyectos (
+    ProyectoID NUMBER PRIMARY KEY,
+    Nombre VARCHAR2(255),
+    EstadoGlobal VARCHAR2(20) -- Puede ser 'Pendiente', 'En Progreso', o 'Completado'
+);
+
+CREATE TABLE HistorialTareas (
+    HistorialID NUMBER PRIMARY KEY,
+    TareaID NUMBER,
+    EstadoAnterior VARCHAR2(20),
+    EstadoNuevo VARCHAR2(20),
+    FechaCambio TIMESTAMP,
+    Usuario VARCHAR2(50) -- Asume que tienes una manera de registrar el usuario que realizó el cambio
+);
+
+
+
+
+-- Trigger Compuesto:
+
+create or replace TRIGGER Estado_tareas_COMP_TRIGGER
+FOR UPDATE OF estado ON Tareas COMPOUND TRIGGER
+
+  v_identificador_tarea Tareas.tareaid%TYPE;
+  v_identificador_responsable Tareas.responsableid%TYPE;
+  v_estado_antiguo_tarea Tareas.estado%TYPE;
+  v_estado_nuevo_tarea   Tareas.estado%TYPE;
+  v_fecha_finalizacion_antigua Tareas.fechafinalizacion%TYPE;
+  v_identificador_proyecto_tarea Tareas.proyectoid%TYPE;
+  v_nombre_usuario VARCHAR2(8);
+  v_fecha_cambio TIMESTAMP;
+
+  BEFORE EACH ROW IS
+  BEGIN
+    v_estado_antiguo_tarea := :old.estado;
+    v_estado_nuevo_tarea := :new.estado;
+    v_identificador_responsable := :new.responsableid;
+    v_identificador_tarea := :new.tareaid;
+    v_identificador_proyecto_tarea := :new.proyectoid;
+    v_fecha_finalizacion_antigua := :old.fechafinalizacion;
+    
+    
+  END BEFORE EACH ROW;
+
+ AFTER EACH ROW IS
+ 
+ BEGIN
+
+select sysdate into v_fecha_cambio from dual;
+
+-- Obtener el usuario de la sesión actual:
+
+select SYS_CONTEXT ('USERENV', 'SESSION_USER') into v_nombre_usuario FROM DUAL;
+   
+ if v_estado_nuevo_tarea <> v_estado_antiguo_tarea then
+
+  if v_estado_antiguo_tarea = 'Pendiente' then
+
+      if v_estado_nuevo_tarea = 'En Progreso' then
+      
+      -- Insertar el cmabio de estado en el Historial de Tareas:
+      
+      insert into HistorialTareas (HistorialID, TareaID, EstadoAnterior, EstadoNuevo, FechaCambio, Usuario) 
+      values (Historial_Tareas_seq.NEXTVAL, v_identificador_tarea, v_estado_antiguo_tarea, v_estado_nuevo_tarea, v_fecha_cambio, v_nombre_usuario);
+    
+        -- Asunto del correo electrónico
+        DBMS_OUTPUT.PUT_LINE('Asunto: Actualización de cambio de estado de: "Pendiente" a "En Progreso"');
+    
+        -- Cuerpo del correo electrónico
+        DBMS_OUTPUT.PUT_LINE('Estimado/a Usuario Responsable con Indentificador: ' || v_identificador_responsable || '.');
+        DBMS_OUTPUT.PUT_LINE('');
+        DBMS_OUTPUT.PUT_LINE('Informamos de que la tarea con identificador: ' || v_identificador_tarea || ' ha cambiado su estado a "En progreso".');
+        DBMS_OUTPUT.PUT_LINE('');
+        DBMS_OUTPUT.PUT_LINE('Gracias,');
+        DBMS_OUTPUT.PUT_LINE('ATT: Samuel Hernández, Administrador.');
+        
+        else  
+        
+        if v_estado_nuevo_tarea = 'Completado' then
+        RAISE_APPLICATION_ERROR(-20001, 'Transición de estado de ' || v_estado_antiguo_tarea || ' a ' || v_estado_nuevo_tarea || ' inconsistente.');
+        
+        end if;
+    
+      end if;
+
+  elsif v_estado_antiguo_tarea  = 'En Progreso' then 
+  
+      if v_estado_nuevo_tarea = 'Completado' then
+      
+       insert into HistorialTareas (HistorialID, TareaID, EstadoAnterior, EstadoNuevo, FechaCambio, Usuario) 
+      values (Historial_Tareas_seq.NEXTVAL, v_identificador_tarea, v_estado_antiguo_tarea, v_estado_nuevo_tarea, v_fecha_cambio, v_nombre_usuario);
+        
+          -- Asunto del correo electrónico
+        DBMS_OUTPUT.PUT_LINE('Asunto: Actualización de cambio de estado de: "En Progreso" a "Completado"');
+    
+        -- Cuerpo del correo electrónico
+        DBMS_OUTPUT.PUT_LINE('Estimado/a Usuario Responsable con Indentificador: ' || v_identificador_responsable || '.');
+        DBMS_OUTPUT.PUT_LINE('');
+        DBMS_OUTPUT.PUT_LINE('Informamos de que la tarea con identificador: ' || v_identificador_tarea || ' ha cambiado su estado a "Completado".');
+        DBMS_OUTPUT.PUT_LINE('');
+        DBMS_OUTPUT.PUT_LINE('Gracias,');
+        DBMS_OUTPUT.PUT_LINE('ATT: Samuel Hernández, Administrador.');
+        
+        else
+        
+       if v_estado_nuevo_tarea = 'Pendiente' then 
+       RAISE_APPLICATION_ERROR(-20002, 'Transición de estado de ' || v_estado_antiguo_tarea || ' a ' || v_estado_nuevo_tarea || ' inconsistente.');
+       end if;
+       end if;
+  
+  
+  elsif v_estado_antiguo_tarea = 'Completado' then
+  
+    if v_estado_nuevo_tarea = 'En Progreso' or v_estado_nuevo_tarea = 'Pendiente' then
+     RAISE_APPLICATION_ERROR(-20003, 'El estado de ' || v_estado_antiguo_tarea || ' no puede ser modificado a ningún otro estado distinto.');
+     end if;
+  
+end if;
+
+ else   
+  RAISE_APPLICATION_ERROR(-20004, 'El estado de la tarea es el mismo.');
+
+ end if;
+ 
+ END AFTER EACH ROW;
+ 
+
+END Estado_tareas_COMP_TRIGGER;
+
+
+-- Procedimiento a integrar en el trigger para manejar el estado global del proyecto:
+
+create or replace procedure Recorrer_tareas_proyectos(v_proyecto_id Tareas.proyectoid%type)
+as
+v_contador_estado_completado number := 0;
+v_contador_estado_enprogreso number := 0;
+v_contador_estado_pendiente  number := 0;
+
+v_estado_completado BOOLEAN := FALSE;
+v_estado_enprogreso BOOLEAN := FALSE;  
+v_estado_pendiente BOOLEAN := FALSE;
+
+v_total number := 0;
+
+
+ cursor c_tareas IS
+        SELECT estado
+        FROM Tareas
+        WHERE PROYECTOID = v_proyecto_id;
+begin
+  
+  for tareas in c_tareas loop
+    dbms_output.put_line('Estado: ' || tareas.estado);
+    
+    if tareas.estado = 'Completado' then 
+    v_contador_estado_completado := v_contador_estado_completado + 1;
+
+    elsif tareas.estado = 'En Progreso' then
+     v_contador_estado_enprogreso := v_contador_estado_enprogreso + 1;
+     
+    elsif tareas.estado = 'Pendiente' then
+     v_contador_estado_pendiente := v_contador_estado_pendiente + 1;
+    end if;
+    
+end loop;
+
+    v_total := v_contador_estado_completado + v_contador_estado_enprogreso + v_contador_estado_pendiente;
+
+
+
+BEGIN
+    CASE
+        WHEN  v_contador_estado_completado = v_total THEN   
+            v_estado_completado := TRUE;
+            v_estado_enprogreso := FALSE;
+            v_estado_pendiente := FALSE;
+            
+            DBMS_OUTPUT.PUT_LINE('El estado global para el Proyecto: ' || v_proyecto_id || ' es "Completado"');      
+            
+        WHEN v_contador_estado_enprogreso = v_total THEN
+            v_estado_enprogreso := TRUE;
+            v_estado_completado := FALSE;
+            v_estado_pendiente := FALSE;
+            
+            DBMS_OUTPUT.PUT_LINE('El estado global para el Proyecto: ' || v_proyecto_id || ' es "En Progreso"');
+            
+         WHEN v_contador_estado_pendiente = v_total THEN
+            v_estado_pendiente := TRUE;
+            v_estado_completado := FALSE;
+            v_estado_enprogreso := FALSE;
+            
+            DBMS_OUTPUT.PUT_LINE('El estado global para el Proyecto: ' || v_proyecto_id || ' es "Pendiente"'); 
+            
+        WHEN  v_contador_estado_enprogreso > 0 and v_contador_estado_completado > 0 THEN
+            v_estado_enprogreso := TRUE;
+            v_estado_completado := FALSE;
+            v_estado_pendiente := FALSE;
+            
+            DBMS_OUTPUT.PUT_LINE('El estado global para el Proyecto: ' || v_proyecto_id || ' es "En Progreso"');
+        
+        WHEN  v_contador_estado_pendiente > 0 and v_contador_estado_completado > 0 THEN
+            v_estado_enprogreso := TRUE;
+            v_estado_completado := FALSE;
+            v_estado_pendiente := FALSE;
+            
+            DBMS_OUTPUT.PUT_LINE('El estado global para el Proyecto: ' || v_proyecto_id || ' es "En Progreso"');
+            
+        WHEN  v_contador_estado_pendiente > 0 and v_contador_estado_enprogreso > 0 THEN
+            v_estado_enprogreso := TRUE;
+            v_estado_completado := FALSE;
+            v_estado_pendiente := FALSE;
+            
+            DBMS_OUTPUT.PUT_LINE('El estado global para el Proyecto: ' || v_proyecto_id || ' es "En Progreso"');   
+            
+        WHEN  v_contador_estado_enprogreso > 0 and v_contador_estado_completado > 0 and v_contador_estado_pendiente > 0 THEN
+            v_estado_enprogreso := TRUE;
+            v_estado_completado := FALSE;
+            v_estado_pendiente := FALSE;
+            
+            DBMS_OUTPUT.PUT_LINE('El estado global para el Proyecto: ' || v_proyecto_id || 'sigue siendo "En Progreso"');   
+            
+    END CASE;
+    
+     IF  v_estado_completado THEN  
+     
+     UPDATE Proyectos set estadoglobal = 'Completado'
+     where proyectoid = v_proyecto_id;
+    
+     ELSIF v_estado_enprogreso THEN
+     
+      UPDATE Proyectos set estadoglobal = 'En Progreso'
+     where proyectoid = v_proyecto_id;
+     
+     ELSIF v_estado_pendiente THEN
+     
+     UPDATE Proyectos set estadoglobal = 'Pendiente'
+     where proyectoid = v_proyecto_id;
+     
+     END IF;
+
+    
+END;
+    dbms_output.put_line('Identificador Proyecto: ' || v_proyecto_id || ' Tareas Completadas: ' || v_contador_estado_completado || ' En Progreso: ' || v_contador_estado_enprogreso || ' Pendientes: '|| v_contador_estado_pendiente || ' Tareas en Total: ' || v_total);
+end;
+/
+
+-- Comprobar el estado global de los proyectos y las tareas:
+
+select * from tareas;
+select * from proyectos;
+
+-- Llamada al procedimiento almacenado:
+
+DECLARE
+    p_id_proyecto Tareas.proyectoid%type := &proyecto;
+
+BEGIN
+    Recorrer_tareas_proyectos(p_id_proyecto);   
+END;
+/
 
 
 

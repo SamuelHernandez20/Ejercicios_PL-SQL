@@ -1,0 +1,48 @@
+--------------------------------
+Conceptos sobre las matrices:
+--------------------------------
+
+- ¿Qué es un VARRAY?
+
+Un VARRAY es un tipo de colección en la que se hace referencia a cada elemento mediante un entero positivo denominado índice de matriz . 
+La cardinalidad máxima de VARRAY se especifica en la definición de tipo.
+
+--------------------------------
+Ejercicios de Matrices en PL/SQL
+-------------------------------
+
+-- 1
+
+declare 
+   type a_paises is varray(6) of varchar2(20);
+   nombre a_paises;
+
+begin
+  nombre := a_paises('España', 'Argentina', 'Brasil', 'Perú', 'México', 'Ecuador');
+
+  for P in 1..5 loop
+   dbms_output.put_line('Nombre del país: ' || nombre(P))
+  end loop;
+
+end;
+
+-- 2
+
+declare 
+   type matriz_nombres is varray(5) of varchar2(20);
+   type matriz_edad is varray(5) of integer;
+   
+   nombres matriz_nombres;
+   edad matriz_edad;
+   total integer;
+
+begin
+  nombres := matriz_nombres('Samuel', 'Antonio', 'Marta', 'Juan', 'Maria');
+  edad := matriz_edad(21,28,35,41,22);
+  total := nombres.count;
+
+  for i in 1..total loop
+   dbms_output.put_line('Nombre: ' || nombres(i) || ', ' || 'Edad: ' || edad(i));
+  end loop;
+
+end;

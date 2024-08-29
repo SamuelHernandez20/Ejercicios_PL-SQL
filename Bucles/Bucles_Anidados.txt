@@ -1,0 +1,49 @@
+-- 1
+
+DECLARE
+    v_ClienteID Clientes.ClienteID%TYPE;
+    v_ClienteID_sin_monto Clientes.ClienteID%TYPE;
+    v_id_orden Ordenes.ordenid%TYPE;
+    v_Nombre Clientes.Nombre%TYPE;
+    v_Nombre_Producto DetallesOrdenes.Producto%TYPE;
+    v_Nombre_Cliente_sin_Monto Clientes.Nombre%TYPE;
+    v_TotalMonto NUMBER := 0;
+    
+BEGIN
+    -- Bucle para recorrer a todos los clientes:
+    
+    FOR cliente IN (SELECT ClienteID, Nombre FROM Clientes) LOOP
+        v_ClienteID := cliente.ClienteID;
+        v_Nombre := cliente.Nombre;
+
+     -- Reiniciar el total para operar con la cantidad del siguiente cliente:
+        
+        v_TotalMonto := 0;
+        
+     -- Bucle para recorrer Órdenes del cliente actual:
+     
+        FOR orden IN (SELECT Monto, OrdenID FROM Ordenes WHERE ClienteID = v_ClienteID) LOOP
+            v_TotalMonto := v_TotalMonto + orden.Monto;
+            v_id_orden := orden.OrdenID;
+            
+         DBMS_OUTPUT.PUT_LINE('');   
+         DBMS_OUTPUT.PUT_LINE('Cliente: ' || v_Nombre || ' ' || 'con id: ' || v_ClienteID);
+         DBMS_OUTPUT.PUT_LINE('');
+            
+        FOR detalle_orden in (SELECT Producto FROM DetallesOrdenes WHERE ordenid = v_id_orden) LOOP
+           v_Nombre_Producto := detalle_orden.Producto;
+        DBMS_OUTPUT.PUT_LINE('PRODUCTO: ' || v_Nombre_Producto || ' ' || 'del cliente ' || v_ClienteID || 'de id orden: ' || v_id_orden);
+         END LOOP;
+        DBMS_OUTPUT.PUT_LINE('Su Total de Monto: ' || v_TotalMonto);
+        END LOOP;
+        
+         
+         IF v_TotalMonto = 0 THEN 
+             v_ClienteID_sin_monto := cliente.ClienteID;
+             v_Nombre_Cliente_sin_Monto := cliente.Nombre;
+             DBMS_OUTPUT.PUT_LINE('Cliente: ' || v_Nombre || ' ' || 'con id: ' || v_ClienteID || ' ' || 'No tiene Monto.');
+            
+         END IF;
+            
+    END LOOP;
+END;

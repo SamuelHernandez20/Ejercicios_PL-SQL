@@ -1,0 +1,266 @@
+-- Triggers con la condición "WHEN":
+
+-- 1
+
+create or replace trigger incrementa_sueldo 
+before update of salario ON emple
+FOR EACH ROW WHEN ( NEW.salario > 4000 and  NEW.salario > OLD.salario)
+declare
+v_nombre_empleado emple.nombre%TYPE;
+BEGIN
+
+v_nombre_empleado := :new.nombre;
+
+   DBMS_OUTPUT.put_line ('El empleado ' || v_nombre_empleado || 'ha superado el umbral el umbral máximo de salario permitido.');
+END;
+
+
+-- 2
+
+CREATE SEQUENCE historial_cambios_
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+
+
+CREATE TABLE historial_cambios (
+    id_historial NUMBER PRIMARY KEY,
+    id_empleado NUMBER,
+    nombre VARCHAR2(50),
+    salario_antiguo NUMBER(10,2),
+    salario_nuevo NUMBER(10,2),
+    depto_antiguo VARCHAR2(50),
+    depto_nuevo VARCHAR2(50),
+    fecha_cambio DATE
+);
+
+create or replace trigger after_update_emple
+before update ON emple
+FOR EACH ROW WHEN ( OLD.salario <> NEW.salario and OLD.id_departamento <> NEW.id_departamento)
+declare
+    v_nombre_empleado emple.nombre%TYPE;
+    v_id_empleado emple.id_empleado%TYPE;
+    v_salario_antiguo emple.salario%TYPE;
+    v_salario_nuevo emple.salario%TYPE;
+    v_dep_antiguo emple.id_departamento%TYPE;
+    v_dep_nuevo emple.id_departamento%TYPE;
+    fecha_cambio TIMESTAMP;
+
+BEGIN
+    v_nombre_empleado := :new.nombre;
+    v_id_empleado := :new.id_empleado;
+    v_salario_antiguo := :old.salario;
+    v_salario_nuevo := :new.salario;
+    v_dep_antiguo := :old.id_departamento;
+    v_dep_nuevo := :new.id_departamento;
+    select sysdate into fecha_cambio from dual;
+
+ insert into historial_cambios  
+ VALUES (historial_cambios_.NEXTVAL, v_id_empleado, v_nombre_empleado, v_salario_antiguo, v_salario_nuevo, v_dep_antiguo, v_dep_nuevo, fecha_cambio);
+
+
+END;
+
+-- Prueba de Ejecución:
+
+update emple 
+set salario = 4800, id_departamento = 4
+where id_empleado = 102;
+
+
+-- 3
+
+CREATE SEQUENCE historial_cambios_
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+
+CREATE TABLE departamentos (
+    id_departamento NUMBER PRIMARY KEY,
+    nombre_departamento VARCHAR2(50)
+);
+
+
+CREATE TABLE empleadoss (
+    id_empleado NUMBER PRIMARY KEY,
+    nombre VARCHAR2(50),
+    salario NUMBER(10, 2),
+    id_departamento NUMBER,
+    bonificacion NUMBER(10, 2)
+);
+
+CREATE TABLE historial_cambios (
+    id_historial NUMBER PRIMARY KEY,
+    id_empleado NUMBER,
+    nombre VARCHAR2(50),
+    salario_antiguo NUMBER(10, 2),
+    salario_nuevo NUMBER(10, 2),
+    bonificacion NUMBER(10, 2),
+    fecha_cambio DATE
+);
+
+
+create or replace trigger despues_actualizar_empleados
+AFTER update ON empleadoss
+FOR EACH ROW WHEN (NEW.salario > OLD.salario * 1.1)
+declare
+    v_bonificacion NUMBER;
+    v_salario_nuevo empleadoss.salario%TYPE;
+    v_id_empleado empleadoss.id_empleado%TYPE;
+    v_nombre_empleado empleadoss.nombre%TYPE;
+    v_salario_antiguo empleadoss.salario%TYPE;
+    fecha_cambio TIMESTAMP;
+BEGIN
+    v_id_empleado := :new.id_empleado;
+    v_nombre_empleado := :new.nombre;
+    v_salario_antiguo := :old.salario;
+    v_salario_nuevo := :new.salario;
+    v_bonificacion := (v_salario_nuevo * 0.05);
+    fecha_cambio := SYSDATE;
+    
+
+ insert into historial_cambios  
+ VALUES (historial_cambios_.NEXTVAL, v_id_empleado, v_nombre_empleado, v_salario_antiguo, v_salario_nuevo, v_bonificacion, fecha_cambio);
+END;
+
+-- Prueba de Ejecución:
+
+update empleadoss
+set salario = 5000
+where id_empleado = 1;
+
+
+-- 4
+
+create or replace trigger calcular_incrementos_salariales
+AFTER update ON empleadoss
+FOR EACH ROW WHEN (NEW.salario > OLD.salario and NEW.salario <= 10000)
+declare
+  v_salario_nuevo empleadoss.salario%TYPE;
+  v_salario_antiguo empleadoss.salario%TYPE;
+  v_id_empleado empleadoss.id_empleado%TYPE;
+  v_nombre_empleado empleadoss.nombre%TYPE;
+  v_porcentaje decimal;
+  v_porcentaje_redondeado NUMBER;
+  v_bonificacion Number;
+  fecha_cambio TIMESTAMP;
+BEGIN
+ v_salario_antiguo := :old.salario;
+ v_salario_nuevo := :new.salario;
+ v_nombre_empleado := :new.nombre;
+ v_id_empleado := :new.id_empleado;
+ v_porcentaje := ((v_salario_nuevo - v_salario_antiguo) / v_salario_antiguo) * 100;
+ v_porcentaje_redondeado := (Trunc(v_porcentaje, 0));
+ fecha_cambio := SYSDATE;
+
+    CASE 
+          WHEN v_porcentaje_redondeado >= 10 and  v_porcentaje_redondeado <= 20 THEN 
+            v_bonificacion := (v_salario_nuevo * 0.05);
+          
+            WHEN v_porcentaje_redondeado >= 20 and  v_porcentaje_redondeado <= 30 THEN 
+             v_bonificacion := (v_salario_nuevo * 0.10);
+           
+            WHEN v_porcentaje_redondeado > 30 THEN 
+              v_bonificacion := (v_salario_nuevo * 0.15);
+             
+        END CASE;
+    
+   insert into historial_cambios  
+   VALUES (historial_cambios_.NEXTVAL, v_id_empleado, v_nombre_empleado, v_salario_antiguo, v_salario_nuevo, v_bonificacion, fecha_cambio);
+    
+END;
+
+update empleadoss
+set salario = 9000
+where id_empleado = 1;
+
+-- 5 (Ejercicio 4 agregando más funcionalidades) [Pendiente de Agregar más funcionalidades]
+
+create or replace trigger calcular_incrementos_salariales
+AFTER update ON empleadoss
+FOR EACH ROW WHEN (NEW.salario > OLD.salario and NEW.salario <= 10000)
+declare
+  v_salario_nuevo empleadoss.salario%TYPE;
+  v_salario_antiguo empleadoss.salario%TYPE;
+  v_id_empleado empleadoss.id_empleado%TYPE;
+  v_nombre_empleado empleadoss.nombre%TYPE;
+  
+  v_porcentaje decimal;
+  v_porcentaje_redondeado NUMBER;
+  v_bonificacion Number;
+  v_proximidad_porcentaje Number;
+  fecha_cambio TIMESTAMP;
+  V_MENSAJE historial_cambios.mensaje_proximidad%TYPE;
+  
+  TYPE mensaje_proximidad IS TABLE OF VARCHAR2(100);
+   v_mensaje_proximidad mensaje_proximidad;
+   
+BEGIN
+    v_salario_antiguo := :old.salario;
+    v_salario_nuevo := :new.salario;
+    v_nombre_empleado := :new.nombre;
+    v_id_empleado := :new.id_empleado;
+ 
+    v_porcentaje := ((v_salario_nuevo - v_salario_antiguo) / v_salario_antiguo) * 100;
+    v_porcentaje_redondeado := (Trunc(v_porcentaje, 0));
+    v_proximidad_porcentaje := (1 - (v_salario_nuevo / 10000)) * 100;
+
+    v_mensaje_proximidad := mensaje_proximidad();
+    v_mensaje_proximidad.EXTEND(3); 
+ 
+  -- Asignar mensajes a posiciones específicas del array:
+  
+    v_mensaje_proximidad(1) := 'Aproximación LEJANA del límite salarial (10.000)';
+    v_mensaje_proximidad(2) := 'Aproximación MEDIA del límite salarial (10.000)';
+    v_mensaje_proximidad(3) := 'Aproximación CERCANA del límite salarial (10.000)';
+
+
+    fecha_cambio := SYSDATE;
+ 
+  -- Calcular el Porcentaje Obtenido:
+  
+    CASE 
+          WHEN v_porcentaje_redondeado >= 10 and  v_porcentaje_redondeado <= 20 THEN 
+            v_bonificacion := (v_salario_nuevo * 0.05);
+          
+            WHEN v_porcentaje_redondeado >= 20 and  v_porcentaje_redondeado <= 30 THEN 
+             v_bonificacion := (v_salario_nuevo * 0.10);
+           
+            WHEN v_porcentaje_redondeado > 30 THEN 
+              v_bonificacion := (v_salario_nuevo * 0.15);
+             
+        END CASE;
+        
+ -- Calcular el Limite de proximidad con el salario máximo permitido (10.000) y notificar cuán se halla el salario del límite:
+    
+      CASE 
+          WHEN v_proximidad_porcentaje > 0 and  v_proximidad_porcentaje <= 50 THEN 
+            V_MENSAJE := v_mensaje_proximidad(3);
+          
+            WHEN v_proximidad_porcentaje >= 50 and  v_proximidad_porcentaje <= 60 THEN 
+            V_MENSAJE := v_mensaje_proximidad(2);
+           
+            WHEN v_porcentaje_redondeado > 60 and v_proximidad_porcentaje <= 99 THEN 
+            V_MENSAJE := v_mensaje_proximidad(1);
+             
+        END CASE;
+    
+  dbms_output.put_line('Porcentaje de proximidad del maximo salarial (10.000) para el salario: ' || v_salario_nuevo || ' es del: ' || v_proximidad_porcentaje || '%');
+      
+   insert into historial_cambios  
+   VALUES (historial_cambios_.NEXTVAL, v_id_empleado, v_nombre_empleado, v_salario_antiguo, v_salario_nuevo, v_bonificacion, fecha_cambio, V_MENSAJE);
+    
+END;
+
+
+select * from empleadoss;
+update empleadoss
+set salario = 5000
+where id_empleado = 2;
+
+
+
+
+

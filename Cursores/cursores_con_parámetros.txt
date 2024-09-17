@@ -1,0 +1,185 @@
+-- 1
+
+declare
+    v_nombre_artista artistas.nombre%type;
+    v_titulo_obra obras.titulo%type;
+
+  CURSOR c_artistas_obras (nombre_artistas artistas.nombre%type) IS
+  SELECT art.nombre, obr.titulo FROM artistas art inner join obras obr on art.artista_id = obr.artista_id
+  WHERE art.nombre = nombre_artistas; 
+
+  BEGIN
+  open c_artistas_obras('Frida Kahlo');
+  LOOP
+  FETCH c_artistas_obras into v_nombre_artista, v_titulo_obra;
+  
+  EXIT WHEN c_artistas_obras%notfound;
+  dbms_output.put_line('El artista es: ' || v_nombre_artista || ' y su obra es: ' || v_titulo_obra);
+  END LOOP;
+  close c_artistas_obras;
+  END;
+
+-- 2
+
+CREATE OR REPLACE PROCEDURE p_exposiciones (v_nombre_exposicion exposiciones.nombre%type) 
+IS
+    v_nombre_artista artistas.nombre%type;
+    v_pais_artista artistas.pais_origen%type;
+    v_titulo_obra obras.titulo%type;
+    v_precio_obra  obras.precio%type;
+    v_fecha_creacion_obra obras.fecha_creacion%type;
+    num_filas NUMBER;
+
+  CURSOR c_exposiciones_obras (v_nombre_exposicion exposiciones.nombre%type) IS
+  select art.nombre, art.pais_origen,o.titulo, o.precio, o.fecha_creacion from artistas art 
+  inner join obras o on art.artista_id = o.artista_id
+  inner join exposicion_obras expobr on o.obra_id = expobr.obra_id
+  inner join exposiciones exps on expobr.exposicion_id = exps.exposicion_id
+  where exps.nombre = v_nombre_exposicion;
+
+  BEGIN
+  
+  select count(*) into num_filas from exposiciones where nombre = v_nombre_exposicion;
+
+  IF num_filas < 1
+  THEN 
+  RAISE_APPLICATION_ERROR(-20010,'No existe la exposición introducida en la base de datos.');
+  END IF;
+  
+  open c_exposiciones_obras(v_nombre_exposicion);
+  LOOP
+  FETCH c_exposiciones_obras into v_nombre_artista, v_pais_artista, v_titulo_obra, v_precio_obra, v_fecha_creacion_obra;
+  
+ EXIT WHEN c_exposiciones_obras%notfound;
+
+  dbms_output.put_line('###########################################');
+  dbms_output.put_line('Nombre del artista: ' || v_nombre_artista);
+  dbms_output.put_line('País de origen: ' || v_pais_artista);
+  dbms_output.put_line('Título de la obra: ' || v_titulo_obra);
+  dbms_output.put_line('Precio de la obra: ' || v_precio_obra);
+  dbms_output.put_line('Fecha de creación de la obra: ' || v_fecha_creacion_obra);
+  dbms_output.put_line('###########################################');
+  
+  END LOOP;
+  close c_exposiciones_obras;
+  
+  EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+END;
+  /
+  
+DECLARE
+    v_nombre_exp exposiciones.nombre%type := &exposicion;
+BEGIN
+    p_exposiciones(v_nombre_exp);
+END;
+
+
+-- 3
+
+-- Procedimiento para verificar el formato del nombre del artista ingresado:
+
+CREATE OR REPLACE PROCEDURE procesar_nombre_usuario (v_cadena_usuario IN OUT artistas.nombre%type) 
+AS
+    v_nombre_artista artistas.nombre%type;
+    numero number;
+BEGIN
+
+    v_cadena_usuario := LOWER(REPLACE(v_cadena_usuario, ' ', ''));
+
+    SELECT nombre, count(nombre) INTO v_nombre_artista, numero FROM artistas 
+    group by nombre having LOWER(REPLACE(nombre, ' ', '')) = v_cadena_usuario;
+
+    IF numero > 0 THEN
+    DBMS_OUTPUT.PUT_LINE('El usuario ha sido encontrado exitosamente...');
+    v_cadena_usuario := v_nombre_artista;
+    END IF;
+    
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('El valor introducido no coincide con ningún artista.');
+END;
+/
+
+-- Creación del procedimiento principal y el cursor con parámetro:
+
+CREATE OR REPLACE PROCEDURE p_nombre_artista (v_nombre_artista_ IN OUT artistas.nombre%type) 
+IS
+    v_nombre_artista artistas.nombre%type;
+    v_pais_artista artistas.pais_origen%type;
+    v_titulo_obra obras.titulo%type;
+    v_precio_obra  obras.precio%type;
+    v_fecha_creacion_obra obras.fecha_creacion%type;
+    v_obras_concatenadas VARCHAR(200);
+    v_total_precios obras.precio%type;
+
+
+  CURSOR c_artistas_nombre (v_nombre_artista_ artistas.nombre%type) IS
+  select art.nombre, art.pais_origen,o.titulo, o.precio, o.fecha_creacion from artistas art 
+  inner join obras o on art.artista_id = o.artista_id
+  where art.nombre = v_nombre_artista_;
+  
+  BEGIN
+  
+  v_obras_concatenadas := '';
+  
+  -- Procedimiento almacenado para manejar si el usuario introduce la cadena sin separar:
+  
+  p_nombre_sin_separar(v_nombre_artista_); 
+  
+  -- Total de los precios de las obras:
+  
+  select sum(o.precio) into v_total_precios from obras o inner join artistas art on art.artista_id = o.artista_id
+  inner join obras obr on obr.artista_id = art.artista_id
+  group by art.nombre having art.nombre = v_nombre_artista_;
+
+  open c_artistas_nombre(v_nombre_artista_);
+
+  LOOP
+  FETCH c_artistas_nombre into v_nombre_artista, v_pais_artista, v_titulo_obra, v_precio_obra, v_fecha_creacion_obra;
+  
+  EXIT WHEN c_artistas_nombre%notfound;
+ 
+  v_obras_concatenadas :=  v_obras_concatenadas || ' ' || v_titulo_obra || '          ' || v_fecha_creacion_obra || '          ' || v_precio_obra || CHR(10);
+  
+  END LOOP;
+  
+  dbms_output.put_line('Nombre del artista: ' || v_nombre_artista);
+  dbms_output.put_line('País de origen: ' || v_pais_artista);
+  dbms_output.put_line('');
+  dbms_output.put_line('------------------------------------------------------');
+  dbms_output.put_line('  OBRAS       '  || '    FECHA_CREACIÓN   ' || '    PRECIO_OBRA   ');
+
+  dbms_output.put_line('------------------------------------------------------');
+  dbms_output.put_line(v_obras_concatenadas);
+  dbms_output.put_line('------------------------------------------------------');
+  dbms_output.put_line('                                      ' || ' PRECIO_TOTAL');
+  dbms_output.put_line('------------------------------------------------------');
+  dbms_output.put_line('                                       ' || v_total_precios);
+  dbms_output.put_line('------------------------------------------------------');
+  dbms_output.put_line('');
+  
+  EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+  dbms_output.put_line('el artista no existe en la base de datos.');
+  
+  close c_artistas_nombre;
+   
+END;
+  /
+
+DECLARE
+    v_nombre_artista artistas.nombre%type := '&artista';
+BEGIN
+    p_nombre_artista(v_nombre_artista);
+END;
+
+
+
+  
+  
+
+
+
+

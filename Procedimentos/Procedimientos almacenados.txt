@@ -58,7 +58,7 @@ BEGIN
 END;
 /
 
---- Parametros de salida ---
+--- Parametros de salida (OUT) ---
 
 -- 1
 
@@ -112,11 +112,35 @@ BEGIN
 END;
 /
 
+-- 2 Procedimiento con variable de entrada y salida (IN OUT):
 
--- 2
+create or replace procedure p_nombre_sin_separar (v_cadena_usuario IN OUT artistas.nombre%type)   
+as
+    cadena_origen artistas.nombre%type; 
+    cadena_sin_espacios VARCHAR2(30);
+    Mensaje_error VARCHAR(40);
+
+BEGIN
+ 
+  select REPLACE(nombre, ' ',''), nombre into cadena_sin_espacios, cadena_origen from artistas 
+  where REPLACE(nombre, ' ','') = v_cadena_usuario or nombre = v_cadena_usuario;
+    
+IF cadena_origen = v_cadena_usuario THEN 
+    DBMS_OUTPUT.PUT_LINE('Formato correcto de separación en la cadena.' );
+ELSE
+
+IF cadena_sin_espacios = v_cadena_usuario THEN
+    v_cadena_usuario := cadena_origen;
+END IF;
+
+END IF;
 
 
-
+ EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('El valor introducido es inválido.' );  
+END;
+/
 
 
 

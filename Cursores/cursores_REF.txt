@@ -1,0 +1,144 @@
+En la base de datos de Oracle, un tipo REF CURSOR puede ser "fuertemente tipado" o "débilmente tipado":
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+- Un CURSOR REF "fuertemente tipado" se declara con una cláusula RETURN como en TYPE StrongCurType IS REF CURSOR RETURN emp%ROWTYPE;
+Una variable REF CURSOR fuertemente tipada solo puede representar un conjunto de resultados que contenga datos que coincidan con el tipo con el que se declara su tipo REF CURSOR. 
+El adaptador de base de datos de Oracle devuelve un conjunto de resultados fuertemente tipado para un CURSOR REF fuertemente tipado.
+
+- Un CURSOR REF con "tipo débil" se declara sin una cláusula RETURN como en TYPE WeakCurType IS REF CURSOR;
+Oracle también proporciona un tipo ESPECIAL REF CURSOR denominado SYS_REFCURSOR que se puede usar para declarar variables REF CURSOR ref con tipo débil. 
+Las variables REF CURSOR con tipo débil pueden representar un conjunto de resultados que contiene cualquier tipo de datos de fila. 
+El adaptador de base de datos de Oracle devuelve un conjunto de resultados débilmente tipado de registros genéricos para un CURSOR REF con tipo débil.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+¿Qué son las variables de cursor en PL/SQL?
+
+En PL/SQL, una variable de cursor es una variable especial que se utiliza para almacenar una referencia a un cursor. 
+A diferencia de otras variables que almacenan valores directamente, una variable de cursor no está vinculada a una consulta específica.
+
+Una variable de cursor nos permite acceder al resultado de una consulta almacenada en un cursor y enviarlo entre programas PL/SQL sin tener que almacenar los datos en una variable y pasarla como argumento. 
+Esto resulta especialmente útil cuando necesitamos compartir el resultado de una consulta en diferentes partes de una aplicación.
+Las variables de cursor nos ofrecen una forma flexible de manipular y acceder a los datos del cursor. 
+Podemos utilizarlas para iterar a través de los registros devueltos por la consulta, aplicar lógica adicional, realizar cálculos o enviar el resultado a otra parte del programa o incluso a otra aplicación.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicios:
+
+-- 1 (Ejemplo de uno como SYS_REFCURSOR)
+
+create or replace function f_artistas_obras (v_id_artista artistas.artista_id%type)
+return SYS_REFCURSOR
+
+is
+    v_ref sys_refcursor;
+begin
+open v_ref for select art.nombre, ob.titulo, ob.precio from artistas art inner join obras ob on ob.artista_id = art.artista_id
+where ob.artista_id = v_id_artista;
+
+return v_ref;
+end;
+
+-- Declaración de variable de tipo ref
+
+var rc1 refcursor
+exec :rc1:=f_artistas_obras(1);
+print rc1;
+
+-- 2 Buscar los títulos de las obras asociadas al nombre del artista indicado. Hacer uso de un procedimiento almacenado y cursor REF.
+     Se indicará en el procedimiento almacenado el nombre del artista como parámetro de entrada (IN), y un parámetro de salida (OUT) de tipo "SYS_REFCURSOR". 
+     Adicionalmente, habrá que indicar un parámetro de entrada que permita a los usuarios ordenadar los resultados por el título de la obra,
+     de manera "Ascendente" o "Descendente", permitiendo que sean reconocidas las acortaciones "asc" o "ASC", o, "desc" o "DESC" e indicarlo en el resultado caso de aplicación.
+
+create or replace procedure buscar_obras_artista (v_nombre_artista IN artistas.nombre%type, v_obras_artistas out SYS_REFCURSOR, v_ordenacion IN VARCHAR)
+IS
+v_cadena_nombre_validacion artistas.nombre%type;
+v_cadena_ordenacion_formato VARCHAR(50);
+BEGIN
+ v_cadena_nombre_validacion := LOWER(REPLACE(v_nombre_artista, ' ', ''));
+ 
+ IF v_ordenacion IS NOT NULL THEN
+  v_cadena_ordenacion_formato := LOWER(v_ordenacion);
+end if;
+ 
+IF v_cadena_ordenacion_formato = 'ascendente' or v_cadena_ordenacion_formato = 'asc' THEN
+
+Open v_obras_artistas for select art.nombre, ob.titulo from artistas art inner join obras ob on ob.artista_id = art.artista_id
+where LOWER(REPLACE(art.nombre, ' ', '')) = v_cadena_nombre_validacion order by ob.titulo asc;
+
+ELSIF v_cadena_ordenacion_formato = 'descendente' or v_cadena_ordenacion_formato = 'desc' THEN
+
+Open v_obras_artistas for select art.nombre, ob.titulo from artistas art inner join obras ob on ob.artista_id = art.artista_id
+where LOWER(REPLACE(art.nombre, ' ', '')) = v_cadena_nombre_validacion order by ob.titulo desc;
+
+END IF;
+END;
+
+
+declare
+    v_rc sys_refcursor;
+    v_nombre_artista_entrada artistas.nombre%type;
+    v_nombre_artista_result artistas.nombre%type;
+    
+    v_ordenacion_predeterminada BOOLEAN;
+    v_ordenacion_ VARCHAR(50);
+    
+    v_num_resultados NUMBER := 0;
+    v_titulo obras.titulo%type;
+begin
+    v_nombre_artista_entrada := 'pablopicasso';
+    v_ordenacion_ := 'descendente';
+
+    IF v_nombre_artista_entrada IS NULL THEN
+     RAISE_APPLICATION_ERROR(-20010, 'No se introdujo el nombre de ningún artista' || v_nombre_artista_entrada);
+    END IF;
+    
+    buscar_obras_artista (v_nombre_artista_entrada, v_rc, v_ordenacion_);
+    
+
+    loop
+        fetch v_rc into v_nombre_artista_result, v_titulo;
+        exit when v_rc%notfound;
+        v_num_resultados := v_num_resultados + 1;
+        dbms_output.put_line('Artista: ' || v_nombre_artista_result || ', Obra: ' || v_titulo);
+    end loop;
+    
+    -- Se podría hacer más simple con "LOWER()" y reducir así la longitud de las expresiones y reducir las evaluaciones, 
+    -- pero es un ejemplo didáctico de como se pueden usar varias combinaciones lógicas, 
+    -- por lo que en un caso real sería innecesario enrevesarlo tanto, pero sí puede ser necesario en el contexto que indico:
+    
+    IF v_num_resultados = 0 THEN 
+    dbms_output.put_line('No existe ninguna obra asociada al nombre del artista introducido');
+    
+    ELSIF ( v_ordenacion_ = 'DESCENDENTE' OR v_ordenacion_ = 'descendente') OR (v_ordenacion_ = 'desc' OR v_ordenacion_ = 'DESC') AND (v_num_resultados > 0) THEN
+    dbms_output.put_line('');
+    dbms_output.put_line('Total de resultados obtenidos: ' || v_num_resultados || ',' || ' Ordenación aplicada: Descendente.');
+    
+    IF v_ordenacion_ = 'desc' or v_ordenacion_ = 'DESC' THEN
+    dbms_output.put_line('- Alias de ordenación: ' || v_ordenacion_ || '.');
+    END IF;
+   
+    ELSIF ( v_ordenacion_ = 'ASCENDENTE' OR v_ordenacion_ = 'ascendente') OR (v_ordenacion_ = 'asc' OR v_ordenacion_ = 'ASC') AND (v_num_resultados > 0) THEN
+    
+    dbms_output.put_line('');
+    dbms_output.put_line('Total de resultados obtenidos: ' || v_num_resultados || ',' || ' Ordenación aplicada: Ascendente.');
+    
+    IF v_ordenacion_ = 'asc' or v_ordenacion_ = 'ASC' THEN
+    dbms_output.put_line('- Alias de ordenación: ' || v_ordenacion_ || '.');
+    END IF;
+
+    END IF;
+
+    close v_rc;
+    
+    EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+
+end;
+/
+
+-- 3 
+
+

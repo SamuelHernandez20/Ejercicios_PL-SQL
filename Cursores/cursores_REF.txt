@@ -139,6 +139,113 @@ begin
 end;
 /
 
--- 3 
+-- 3 Hacer uso de un procedimiento almacenado que tenga como parámetro de entrada el nombre del artista, parámetro de salida el cursor REF, como parámetro de entrada 
+     y salida el nivel de detalle, varaible encargada tanto de recibir que nivel desea (nivel1, nivel2, nivel3) y formatear la cadena como de devolverla. 
+     Dependiendo del nivel escogido, aplicará el cursor para unas columnas u otras:
+
+   - Nivel 1: Mostrar Nombre del artista y título de la obra.
+   - Nivel 2: Mostrar Nombre del artista y título de la obra, y su fecha de creación.
+   - Nivel 2: Mostrar Nombre del artista y título de la obra, precio de la obra, y su descripción.
+
+    Manejo libre de posibles errores, y lanzamiento de excepciones en consecuencia.
+
+create or replace procedure detallar_informacion (v_nombre_artista IN artistas.nombre%type, v_resultado_ref out SYS_REFCURSOR, v_nivel_detalle IN OUT VARCHAR2)
+IS
+v_cadena_nombre_validacion artistas.nombre%type;
+BEGIN
+
+  IF v_nombre_artista IS NULL AND v_nivel_detalle IS NOT NULL THEN
+  RAISE_APPLICATION_ERROR(-20010, 'Error, se introdujo un dato nulo para el artista.');
+  
+  ELSIF v_nombre_artista IS NOT NULL AND v_nivel_detalle IS NULL THEN
+   RAISE_APPLICATION_ERROR(-20011, 'Error, se introdujo un dato nulo para el nivel de detalle.');
+  
+  ELSIF v_nombre_artista IS NULL AND v_nivel_detalle IS NULL THEN
+   RAISE_APPLICATION_ERROR(-20012, 'Error, se introdujo valores nulos para el artista y el nivel de detalle.');
+  
+  ELSE
+    v_cadena_nombre_validacion := LOWER(REPLACE(v_nombre_artista, ' ', ''));
+    v_nivel_detalle := LOWER(REPLACE(v_nivel_detalle, ' ', ''));
+END IF;
+
+
+ CASE v_nivel_detalle
+    WHEN 'nivel1' THEN 
+          dbms_output.put_line('El nivel seleccionado es el Nivel 1:');
+          dbms_output.put_line('');
+          Open v_resultado_ref for select art.nombre, ob.titulo from artistas art inner join obras ob on ob.artista_id = art.artista_id
+          where LOWER(REPLACE(art.nombre, ' ', '')) = v_cadena_nombre_validacion; 
+                        
+    WHEN 'nivel2' THEN 
+          dbms_output.put_line('El nivel seleccionado es el Nivel 2:');
+          dbms_output.put_line('');
+          Open v_resultado_ref for select art.nombre, ob.titulo, ob.fecha_creacion from artistas art inner join obras ob on ob.artista_id = art.artista_id
+          where LOWER(REPLACE(art.nombre, ' ', '')) = v_cadena_nombre_validacion; 
+              
+     WHEN 'nivel3' THEN
+           dbms_output.put_line('El nivel seleccionado es el Nivel 3:');
+           dbms_output.put_line('');
+           Open v_resultado_ref for select art.nombre, ob.titulo, ob.precio, ob.descripcion from artistas art inner join obras ob on ob.artista_id = art.artista_id
+           where LOWER(REPLACE(art.nombre, ' ', '')) = v_cadena_nombre_validacion; 
+    ELSE 
+        dbms_output.put_line('nivel de detalle especificado es inválido');
+    END CASE;
+    
+    EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+ 
+END;
+/
+
+declare
+-- Variables de llamada:
+v_rc sys_refcursor;
+v_nombre artistas.nombre%type := '&nombre_artista';
+v_nivel VARCHAR2(10) := '&nivel_detalle';
+
+-- Variables del cursor: 
+vc_nombre_artista_result artistas.nombre%type;
+vc_titulo obras.titulo%type;
+vc_fecha_creacion obras.fecha_creacion%type;
+vc_precio_obra obras.precio%type;
+vc_descripcion_obra obras.descripcion%type;
+
+begin
+detallar_informacion(v_nombre, v_rc, v_nivel);
+
+ IF v_nivel = 'nivel1' THEN
+
+     loop
+     fetch v_rc into vc_nombre_artista_result, vc_titulo;
+      exit when v_rc%notfound;
+     dbms_output.put_line('Artista: ' || vc_nombre_artista_result || ', Obra: ' || vc_titulo);
+      end loop;
+
+  ELSIF  v_nivel = 'nivel2' THEN
+
+      loop
+      fetch v_rc into vc_nombre_artista_result, vc_titulo, vc_fecha_creacion;
+      exit when v_rc%notfound;
+      dbms_output.put_line('Artista: ' || vc_nombre_artista_result || ', Obra: ' || vc_titulo || ', Fecha de creación: ' || vc_fecha_creacion);
+      end loop;
+
+  ELSIF  v_nivel = 'nivel3' THEN  
+
+     loop
+     fetch v_rc into vc_nombre_artista_result, vc_titulo, vc_precio_obra, vc_descripcion_obra;
+      exit when v_rc%notfound;
+     dbms_output.put_line('Artista: ' || vc_nombre_artista_result || ', Obra: ' || vc_titulo || ' precio: ' || vc_precio_obra || ', y su descripción es: ' || vc_descripcion_obra);
+     end loop;
+     
+     -- In
+
+ END IF;
+                    
+    close v_rc;
+end;
+/
+
+-- 4
 
 

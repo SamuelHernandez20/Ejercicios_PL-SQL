@@ -246,6 +246,176 @@ detallar_informacion(v_nombre, v_rc, v_nivel);
 end;
 /
 
--- 4
+-- 4 Creación de un ejercicio que maneja múltiples Cursores REF en un mismo procedimiento.
+--   Es un caso muy similar al ejercicio anterior, pero esta vez empleando el manejo de 2 cursores REF para tratar con la lógica de devolución de información según el nivel de detalle escogido:
+
+
+create or replace procedure multples_cursores_ref 
+(v_nombre_artista IN artistas.nombre%type, v_nivel_detalle IN OUT VARCHAR2, 
+v_Obtener_obras_artista_ref out SYS_REFCURSOR, v_Obtener_exposiciones_obras_artista_ref out SYS_REFCURSOR)
+
+IS
+v_cadena_nombre_validacion artistas.nombre%type;
+v_artista_id artistas.artista_id%type;
+BEGIN
+
+      IF v_nombre_artista IS NULL AND v_nivel_detalle IS NOT NULL THEN
+      RAISE_APPLICATION_ERROR(-20010, 'Error, se introdujo un dato nulo para el artista.');
+      
+      ELSIF v_nombre_artista IS NOT NULL AND v_nivel_detalle IS NULL THEN
+       RAISE_APPLICATION_ERROR(-20011, 'Error, se introdujo un dato nulo para el nivel de detalle.');
+      
+      ELSIF v_nombre_artista IS NULL AND v_nivel_detalle IS NULL THEN
+       RAISE_APPLICATION_ERROR(-20012, 'Error, se introdujo valores nulos para el artista y el nivel de detalle.');
+      
+      ELSE
+        v_cadena_nombre_validacion := LOWER(REPLACE(v_nombre_artista, ' ', ''));
+        v_nivel_detalle := LOWER(REPLACE(v_nivel_detalle, ' ', ''));
+        
+        -- He decidido esta vez obtener el id_artista a partir de la comparación con 'v_cadena_nombre_validacion' 
+        -- para evitar expresar esta condición más de una vez, y simplificar la de los cursores.
+        
+        select artista_id into v_artista_id from artistas art where LOWER(REPLACE(art.nombre, ' ', '')) = v_cadena_nombre_validacion;
+        
+    END IF;
+
+
+     CASE v_nivel_detalle
+        WHEN 'nivel1' THEN 
+              dbms_output.put_line('El nivel seleccionado es el Nivel 1 (Apertura del primer cursor):');
+              dbms_output.put_line('');
+              
+              Open v_Obtener_obras_artista_ref for select  ob.fecha_creacion , ob.titulo
+              from artistas art inner join obras ob on ob.artista_id = art.artista_id
+              where ob.artista_id = v_artista_id;
+                            
+        WHEN 'nivel2' THEN 
+              dbms_output.put_line('El nivel seleccionado es el Nivel 2 (Apertura del primer y segundo cursor):');
+              dbms_output.put_line('');
+              
+              Open v_Obtener_obras_artista_ref for select ob.fecha_creacion , ob.titulo
+              from artistas art inner join obras ob on ob.artista_id = art.artista_id
+              where ob.artista_id = v_artista_id;
+              
+              Open v_Obtener_exposiciones_obras_artista_ref for select expo.ubicacion, expo.fecha_inicio, expo.fecha_fin, expo.nombre from obras ob 
+              inner join exposicion_obras expob on expob.obra_id = ob.obra_id
+              inner join exposiciones expo on expo.exposicion_id = expob.exposicion_id
+              where ob.artista_id = v_artista_id;
+                  
+         WHEN 'nivel3' THEN
+               dbms_output.put_line('El nivel seleccionado es el Nivel 3: (Apertura del segundo cursor con mayor detalle)');
+               dbms_output.put_line('');
+               
+              Open v_Obtener_exposiciones_obras_artista_ref 
+              for select art.nombre, expo.ubicacion, expo.fecha_inicio, expo.fecha_fin, expo.nombre, ob.titulo, ob.descripcion 
+              from obras ob 
+              inner join artistas art on art.artista_id = ob.artista_id
+              inner join exposicion_obras expob on expob.obra_id = ob.obra_id
+              inner join exposiciones expo on expo.exposicion_id = expob.exposicion_id
+              where ob.artista_id = v_artista_id;    
+        ELSE 
+            dbms_output.put_line('nivel de detalle especificado es inválido');
+        END CASE;
+END;
+/
+ 
+ DECLARE
+ 
+ -- Declaración de variables de llamada:
+ 
+v_obtener_obras_artista_rc sys_refcursor;
+v_obtener_exposiciones_obras_artista_rc sys_refcursor;
+v_nombre artistas.nombre%type := '&nombre_artista';
+v_nivel VARCHAR2(10) := '&nivel_detalle';
+
+-- Declaración de variables del Cursor 1:
+vc_fecha_creacion obras.fecha_creacion%type;
+vc_titulo obras.titulo%type;
+
+-- Declaración de variables del Cursor 2:
+
+v_expo_ubicacion_rc exposiciones.ubicacion%type;
+v_expo_fecha_inicio_rc exposiciones.fecha_inicio%type;
+v_expo_fecha_fin_rc exposiciones.fecha_fin%type;
+v_expo_nombre_rc  exposiciones.nombre%type;
+
+v_artista_nombre_rc artistas.nombre%type;
+v_obras_descripcion_rc  obras.descripcion%type; 
+
+
+ BEGIN
+ 
+ multples_cursores_ref(v_nombre, v_nivel, v_obtener_obras_artista_rc, v_obtener_exposiciones_obras_artista_rc);
+ 
+      IF v_nivel = 'nivel1' THEN
+         dbms_output.put_line('# SOBRE LA OBRA #');
+         loop
+         fetch v_obtener_obras_artista_rc into vc_fecha_creacion, vc_titulo;
+          exit when v_obtener_obras_artista_rc%notfound;
+          dbms_output.put_line('------------------------------------------------------');
+          dbms_output.put_line('Título de la Obra: ' || vc_titulo );
+          dbms_output.put_line('Fecha de Creación de la Obra: ' || vc_fecha_creacion );
+          dbms_output.put_line('------------------------------------------------------');
+          end loop;
+       
+         
+      ELSIF  v_nivel = 'nivel2' THEN
+      
+          dbms_output.put_line('# SOBRE LA OBRA #');
+          loop
+          fetch v_obtener_obras_artista_rc into vc_fecha_creacion, vc_titulo;
+          exit when v_obtener_obras_artista_rc%notfound;
+          dbms_output.put_line('------------------------------------------------------');
+          dbms_output.put_line('Título de la Obra: ' || vc_titulo );
+          dbms_output.put_line('Fecha de Creación de la Obra: ' || vc_fecha_creacion );
+          dbms_output.put_line('------------------------------------------------------');
+          end loop;
+
+         dbms_output.put_line('');
+         dbms_output.put_line('# SOBRE LA EXPOSICIÓN #');
+         
+          loop
+          fetch v_obtener_exposiciones_obras_artista_rc into v_expo_ubicacion_rc, v_expo_fecha_inicio_rc, v_expo_fecha_fin_rc, v_expo_nombre_rc;
+          exit when v_obtener_exposiciones_obras_artista_rc%notfound;
+          dbms_output.put_line('------------------------------------------------------');
+          dbms_output.put_line('Ubicación de la Exposición: ' || v_expo_ubicacion_rc);
+          dbms_output.put_line('Fecha de Inicio de la Exposición: ' || v_expo_fecha_inicio_rc);
+          dbms_output.put_line('Fecha de Fin de la Exposición: ' || v_expo_fecha_fin_rc);
+          dbms_output.put_line('Nombre de la Exposición: ' || v_expo_nombre_rc);
+          dbms_output.put_line('------------------------------------------------------');
+          end loop;
+       
+         dbms_output.put_line('');
+         
+      ELSIF v_nivel = 'nivel3' THEN  
+         dbms_output.put_line('# SOBRE EL ARTISTA, LA OBRA Y LA EXPOSICIÓN #');
+         loop
+          fetch v_obtener_exposiciones_obras_artista_rc into v_artista_nombre_rc, v_expo_ubicacion_rc, v_expo_fecha_inicio_rc, v_expo_fecha_fin_rc, v_expo_nombre_rc, vc_titulo, v_obras_descripcion_rc;
+          exit when v_obtener_exposiciones_obras_artista_rc%notfound;
+          dbms_output.put_line('------------------------------------------------------');
+          dbms_output.put_line('El nombre del Artista es: ' || v_artista_nombre_rc);
+          dbms_output.put_line('Ubicación de la Exposición: ' || v_expo_ubicacion_rc);
+          dbms_output.put_line('Fecha de Inicio de la Exposición: ' || v_expo_fecha_inicio_rc);
+          dbms_output.put_line('Fecha de Fin de la Exposición: ' || v_expo_fecha_fin_rc);
+          dbms_output.put_line('Nombre de la Exposición: ' || v_expo_nombre_rc);
+          dbms_output.put_line('La Descripción de la Obra es: ' || v_obras_descripcion_rc);
+          dbms_output.put_line('------------------------------------------------------');
+          end loop;
+      
+     END IF;
+                    
+    -- Cerrar los cursores solo si están abiertos (Evita el error: ORA-01001):
+    
+    IF v_obtener_obras_artista_rc%ISOPEN THEN
+        CLOSE v_obtener_obras_artista_rc;
+    END IF;
+
+    IF v_obtener_exposiciones_obras_artista_rc%ISOPEN THEN
+        CLOSE v_obtener_exposiciones_obras_artista_rc;
+    END IF;
+ 
+ END;
+
+
 
 

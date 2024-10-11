@@ -24,7 +24,7 @@ Podemos utilizarlas para iterar a través de los registros devueltos por la cons
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Ejercicios: (Tipado débil)
+-- Ejercicios: (Tipado Débil).
 
 -- 1 (Ejemplo de uno como SYS_REFCURSOR)
 
@@ -415,6 +415,8 @@ v_obras_descripcion_rc  obras.descripcion%type;
     END IF;
  
  END;
+
+-- Ejercicios: (Tipado Fuerte).
 
 
 

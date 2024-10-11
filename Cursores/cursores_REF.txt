@@ -418,6 +418,29 @@ v_obras_descripcion_rc  obras.descripcion%type;
 
 -- Ejercicios: (Tipado Fuerte).
 
+-- 1 Para este caso se utiliza un cursor fuertemente tipado
+
+DECLARE
+    -- La clausula 'RETURN' al final de la declaración lo convierte en un cursor fuertemente tipado:
+    TYPE my_RefCursor_strong IS REF CURSOR RETURN artistas%ROWTYPE; 
+    
+    -- Declaración de variables para el cursor y la obtención de datos:
+    v_cursor_strong my_RefCursor_strong;
+    v_result_cursor_strong artistas%ROWTYPE;
+
+BEGIN
+    OPEN v_cursor_strong FOR SELECT * FROM artistas WHERE artista_id = 1;
+    FETCH v_cursor_strong INTO v_result_cursor_strong;
+    
+    dbms_output.put_line('El nombre del Artista es: ' || v_result_cursor_strong.nombre);
+    dbms_output.put_line('El país del Artista es: ' || v_result_cursor_strong.pais_origen);
+
+   CLOSE v_cursor_strong;
+
+END;
+/
+
+-- 2
 
 
 

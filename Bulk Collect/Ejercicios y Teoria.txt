@@ -1,0 +1,247 @@
+Antes de ver la sentencia 'Bulk Collect' se aprenderá que es una colección y llenar arrays con tablas.
+
+- Una colección se puede definir como una matriz de una sola dimensión que esta compuesta por uno o más
+  elementos accesibles a través de un índice. (similar a matríz de elementos en java).
+
+ 1. Arrays Asociativos.
+ 2. Nested Tables. (Tablas Anidadas).
+ 3. Varrays.
+
+-- Arrays Asociativos (Index By Tables):
+
+ Estos son un tipo de colección que poseen dos columnas: La clave primaria y los valores
+ y no tienen tamaño (dinámicos).
+
+ - Su sintaxis es:
+
+  " TYPE nombre IS TABLE OF
+     TIPO COLUMNA
+     INDEX BY PLS_INTEGER | BINARY_INTEGER | VARCHAR2(X);
+     
+     VARIABLE TIPO:"
+
+ - Ejemplo aplicado:
+
+  " TYPE DEPARTAMENTOS IS TABLE OF
+       DEPARTAMENTOS.DEPARTAMENTOS_NOMBRE%TYPE
+     INDEX BY PLS_INTEGER;
+
+    TYPE EMPLEADOS IS TABLE OF
+       EMPLEADOS%ROWTYPE
+     INDEX BY PLS_INTEGER;
+
+    DEPTS DEPARTAMENTOS;
+    EMPLS EMPLEADOS; "
+
+-- Primer ejercicio con la base de datos de Artistas:
+
+DECLARE
+   -- Declaración del tipo de tabla asociada a los nombres de los artistas
+   TYPE obras_array IS TABLE OF OBRAS.TITULO%TYPE INDEX BY PLS_INTEGER;
+   
+   -- Creación de array con múltiples columnas:
+   TYPE artistas_info_completa IS TABLE OF ARTISTAS%ROWTYPE INDEX BY PLS_INTEGER;
+   
+   -- Declaración de la variable que usa ese tipo de tabla
+   OBR obras_array;
+   ART_INFO artistas_info_completa;
+BEGIN
+
+   -- Asignarición de datos en los arrays (clave-valor):
+   
+   ART_INFO(1).artista_id := 1;
+   ART_INFO(1).nombre := 'Samuel';
+   ART_INFO(1).pais_origen := 'México';
+   
+   ART_INFO(2).artista_id := 2;
+   ART_INFO(2).nombre := 'Jorge';
+   ART_INFO(2).pais_origen := 'España';
+   
+   OBR(1) := 'Guernica1'; 
+   OBR(2) := 'Las dos Fridas'; 
+   
+   -- Mostrar los valores en la tabla usando DBMS_OUTPUT
+   DBMS_OUTPUT.PUT_LINE('Primer Artista: ' || ART_INFO(1).nombre || ', es de ' || ART_INFO(1).pais_origen || ', y su obra asociada es: ' || OBR(1));
+   DBMS_OUTPUT.PUT_LINE('Segundo Artista: ' || ART_INFO(2).nombre || ', es de ' || ART_INFO(2).pais_origen || ', y su obra asociada es: ' || OBR(2));
+   
+END;
+
+-- Segundo Ejercicio con la base de datos Empleados y Departamentos:
+
+DECLARE
+ 
+   -- Creación de array con múltiples columnas:
+   TYPE datos_empleados IS TABLE OF EMPLEADOSS%ROWTYPE INDEX BY PLS_INTEGER;
+   TYPE datos_departamentos IS TABLE OF DEPARTAMENTOS%ROWTYPE INDEX BY PLS_INTEGER;
+   
+   -- Declaración de la variable que usa ese tipo de tabla
+   EMP datos_empleados;
+   DEPART datos_departamentos;
+   v_nombre_departamento1 departamentos.nombre_departamento%type;
+   v_nombre_departamento2 departamentos.nombre_departamento%type;
+   
+BEGIN
+
+   -- Asignación de datos en los arrays (clave-valor):
+   
+   EMP(1).id_empleado := 1;
+   EMP(1).nombre := 'Samuel';
+   EMP(1).salario := 1000;
+   EMP(1).id_departamento := 1;
+   EMP(1).bonificacion := 100;
+   
+   EMP(2).id_empleado := 2;
+   EMP(2).nombre  := 'Carlos';
+   EMP(2).salario := 2000;
+   EMP(2).id_departamento := 2;
+   EMP(2).bonificacion := 100;
+   
+   DEPART(1).id_departamento := 1;
+   DEPART(1).nombre_departamento := 'Recursos Humanos';
+   
+   DEPART(2).id_departamento := 2;
+   DEPART(2).nombre_departamento := 'Tecnología';
+   
+  IF(EMP(1).id_departamento = 1) THEN
+  v_nombre_departamento1 :=  DEPART(1).nombre_departamento;
+  ELSE
+  v_nombre_departamento1 :=  DEPART(2).nombre_departamento;
+  END IF;
+  
+  IF(EMP(2).id_departamento = 1) THEN
+  v_nombre_departamento2 :=  DEPART(1).nombre_departamento;
+  ELSE
+  v_nombre_departamento2 :=  DEPART(2).nombre_departamento;
+  END IF;
+
+   -- Mostrar los valores en la tabla usando DBMS_OUTPUT
+   DBMS_OUTPUT.PUT_LINE('Información de los Empleados de la Empresa:');
+   DBMS_OUTPUT.PUT_LINE(''); 
+   DBMS_OUTPUT.PUT_LINE('Primer Empleado');
+   DBMS_OUTPUT.PUT_LINE('Nombre: ' || EMP(1).nombre);
+   DBMS_OUTPUT.PUT_LINE('Salario: ' || EMP(1).salario);
+   DBMS_OUTPUT.PUT_LINE('Departamento: ' || EMP(1).id_departamento);
+   DBMS_OUTPUT.PUT_LINE('Nombre Departamento: ' || v_nombre_departamento1);
+   
+   DBMS_OUTPUT.PUT_LINE('');
+   
+   DBMS_OUTPUT.PUT_LINE('Segundo Empleado');
+   DBMS_OUTPUT.PUT_LINE('Primer Empleado');
+   DBMS_OUTPUT.PUT_LINE('Nombre: ' || EMP(2).nombre);
+   DBMS_OUTPUT.PUT_LINE('Salario: ' || EMP(2).salario);
+   DBMS_OUTPUT.PUT_LINE('Departamento: ' || EMP(2).id_departamento);
+   DBMS_OUTPUT.PUT_LINE('Nombre Departamento: ' || v_nombre_departamento2);
+   
+END;
+
+-- A continuación se verá como llenar una colección con tablas. 
+
+-- Para este primer ejemplo se llena un array con una columna de una tabla (artistas):
+
+DECLARE
+TYPE artistas_info_nombre IS TABLE OF ARTISTAS.NOMBRE%TYPE INDEX BY PLS_INTEGER;
+
+ART_NOMBRE artistas_info_nombre;
+
+cursor cur_artistas is select * from artistas;
+clave PLS_INTEGER := 1; 
+
+BEGIN
+
+for art in cur_artistas loop
+ART_NOMBRE(clave) := art.nombre;
+clave := clave + 1;
+end loop;
+
+DBMS_OUTPUT.PUT_LINE('Nombres de los Artistas:');
+DBMS_OUTPUT.PUT_LINE('');
+
+for i in 1..clave-1 loop
+DBMS_OUTPUT.PUT_LINE(ART_NOMBRE(i));
+end loop;
+
+END;
+
+
+
+-- Para este segundo ejemplo se llena un array con todas las columnas de una tabla (artistas):
+
+Declare
+Type Artistas_Info_Completa Is Table Of Artistas%Rowtype Index By Pls_Integer;
+
+Art_Info_Completa Artistas_Info_Completa;
+
+Cursor Cur_Artistas Is Select * From Artistas Where Pais_Origen = 'España';
+Clave Pls_Integer := 1; 
+
+Begin
+
+For Art In Cur_Artistas Loop
+Art_Info_Completa(Clave) := Art;
+Clave:=Clave+1;
+End Loop;
+
+Dbms_Output.Put_Line('Información Completa de los Artistas:');
+Dbms_Output.Put_Line('');
+
+For I In 1..Clave-1 Loop
+Dbms_Output.Put_Line(Art_Info_Completa(I).Artista_Id);
+Dbms_Output.Put_Line(Art_Info_Completa(I).Nombre);
+Dbms_Output.Put_Line(Art_Info_Completa(I).Pais_Origen);
+End Loop;
+
+End;
+
+-- A continuación se verá como llenar los arrays con valores un poco más complejos
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -192,7 +192,44 @@ End Loop;
 
 End;
 
--- A continuación se verá como llenar los arrays con valores un poco más complejos
+
+-- Segundo Ejemplo:
+
+declare
+type artistas_info_completa is table of artistas%rowtype index by pls_integer;
+type artistas_info_obras is table of obras%rowtype index by pls_integer;
+type artistas_sin_obras is table of artistas%rowtype index by pls_integer;
+
+art_info_completa artistas_info_completa;
+art_info_obras artistas_info_obras;
+art_sin_obras artistas_sin_obras;
+
+
+begin
+
+select * bulk collect into art_info_completa from artistas;
+select * bulk collect into art_info_obras from obras;
+select art.* bulk collect into art_sin_obras from artistas art 
+left join obras ob on art.artista_id = ob.artista_id where ob.artista_id is null;
+
+dbms_output.put_line('Artistas con Obras:');
+dbms_output.put_line('');
+for i in 1..art_info_completa.count() loop
+for o in 1..art_info_obras.count() loop
+if art_info_completa(i).artista_id = art_info_obras(o).artista_id then
+dbms_output.put_line('Artista: ' || art_info_completa(i).nombre);
+dbms_output.put_line('Obra: ' || art_info_obras(o).titulo || ', Fecha de Creación: ' || art_info_obras(o).fecha_creacion);
+end if;
+end loop;
+end loop;
+
+dbms_output.put_line('');
+dbms_output.put_line('Artistas sin Obras:');
+dbms_output.put_line('');
+for i in 1..art_sin_obras.count() loop
+dbms_output.put_line('Artista: ' || art_sin_obras(i).nombre);
+end loop;
+end;
 
 
 

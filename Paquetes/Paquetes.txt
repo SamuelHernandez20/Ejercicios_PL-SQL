@@ -1,0 +1,96 @@
+/*
+Los paquetes en PL/SQL son una serie de objetos relacionados
+entre sí, que son encapsulados y convertidos en una unidad dentro
+de la base de datos.
+
+- Composición de un paquete:
+
+1. Especificación del paquete. ] Público.
+
+ Es la interfaz entre el paquete y las aplicaciones que lo utilizan.
+ De este modo, permite que los elementos definidos en el cuerpo del 
+ paquete puedan ser invocados fuera de él. 
+
+2. Cuerpo del paquete. ] Privado.
+
+ Este contiene la implementación de la lógica de
+ manera privada.
+*/
+
+create or replace package cleaning as
+-- Especificación del Paquete:
+procedure format_data (
+    p_ventas_id_sin_convertir IN OUT ventas_ext.ventas_id%type,
+    p_cadena_fecha_sin_convertir IN OUT ventas_ext.fecha%type,
+    p_artista_id_sin_convertir IN OUT ventas_ext.artista_id%type,
+    p_monto_sin_convertir IN OUT ventas_ext.monto%type);
+
+procedure adjust_amount (
+    p_monto IN OUT NUMBER); 
+    
+procedure international_category (
+    p_pais_origen VARCHAR2, 
+    p_categoria OUT VARCHAR2);
+    
+end cleaning;
+
+-- Cuerpo del Paquete:
+create or replace package body cleaning as
+
+procedure format_data (
+   p_ventas_id_sin_convertir IN OUT ventas_ext.ventas_id%type,
+   p_cadena_fecha_sin_convertir IN OUT ventas_ext.fecha%type,
+   p_artista_id_sin_convertir IN OUT ventas_ext.artista_id%type,
+   p_monto_sin_convertir IN OUT ventas_ext.monto%type)   
+as
+ v_condicion CONSTANT BOOLEAN :=
+ p_ventas_id_sin_convertir IS NOT NULL 
+ AND p_cadena_fecha_sin_convertir IS NOT NULL 
+ AND p_artista_id_sin_convertir IS NOT NULL
+ AND p_monto_sin_convertir IS NOT NULL;
+
+BEGIN
+    IF v_condicion THEN
+    
+      p_ventas_id_sin_convertir := TO_NUMBER(p_ventas_id_sin_convertir);
+      
+      p_cadena_fecha_sin_convertir := TO_DATE(p_cadena_fecha_sin_convertir, 'YYYY-MM-DD');
+
+      p_artista_id_sin_convertir := TO_NUMBER(p_artista_id_sin_convertir);
+      
+      p_monto_sin_convertir := TO_NUMBER(p_monto_sin_convertir);
+    END IF;
+END format_data;
+
+procedure adjust_amount (p_monto IN OUT NUMBER)   
+as
+BEGIN
+ p_monto := trunc(p_monto,0);
+ 
+IF p_monto < -999999 THEN
+ p_monto := 0;
+ELSIF p_monto >= -999999 AND p_monto <= -1 THEN
+ p_monto := ABS(p_monto);
+END IF;
+
+IF p_monto > 999999 THEN
+ p_monto := 999999;
+END IF;
+
+END adjust_amount; 
+
+procedure international_category (p_pais_origen VARCHAR2, p_categoria OUT VARCHAR2)   
+as
+v_categoría_internacional VARCHAR2(20) := 'Internacional';
+v_categoría_nacional VARCHAR2(20) := 'Nacional';
+BEGIN
+ 
+ IF p_pais_origen != 'España' AND p_pais_origen != 'México' THEN
+    p_categoria := v_categoría_internacional;
+ ELSE
+    p_categoria := v_categoría_nacional;
+ END IF;
+END international_category;
+
+end cleaning;
+
